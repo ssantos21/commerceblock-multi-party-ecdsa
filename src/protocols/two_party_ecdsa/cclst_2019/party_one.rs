@@ -15,9 +15,9 @@
 */
 use std::cmp;
 
-use class_group::primitives::cl_dl_lcm::Ciphertext;
-use class_group::primitives::cl_dl_lcm::Witness;
-use class_group::primitives::cl_dl_lcm::{CLDLProofPublicSetup, HSMCL};
+use class_group::primitives::Ciphertext;
+use class_group::primitives::Witness;
+use class_group::primitives::{CLDLProof, HSMCL};
 use curv::arithmetic::traits::*;
 use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
 use curv::cryptographic_primitives::commitments::traits::Commitment;
@@ -36,6 +36,7 @@ use subtle::ConstantTimeEq;
 use super::party_two::EphKeyGenFirstMsg as Party2EphKeyGenFirstMessage;
 use super::party_two::EphKeyGenSecondMsg as Party2EphKeyGenSecondMessage;
 use super::SECURITY_BITS;
+
 use crate::Error::{self, InvalidSig};
 
 //****************** Begin: Party One structs ******************//
@@ -241,8 +242,8 @@ impl Party1Private {
 }
 
 impl HSMCLKeyPair {
-    pub fn generate_keypair_and_encrypted_share(keygen: &EcKeyPair, seed: BigInt) -> HSMCLKeyPair {
-        let hsmcl = HSMCL::keygen_with_setup(&FE::q(), &1348, &seed);
+    pub fn generate_keypair_and_encrypted_share(keygen: &EcKeyPair) -> HSMCLKeyPair {
+        let hsmcl = HSMCL::keygen(&FE::q(), &516);
         let ek = hsmcl.pk.clone();
         let randomness = BigInt::sample_below(&(&ek.stilde * BigInt::from(2).pow(40)));
 
@@ -262,18 +263,16 @@ impl HSMCLKeyPair {
     pub fn generate_zkcldl_proof(
         context: &HSMCLKeyPair,
         party_one_private: &Party1Private,
-        seed: BigInt,
-    ) -> CLDLProofPublicSetup {
+    ) -> CLDLProof {
         let witness = Witness {
             x: party_one_private.x1.to_big_int(),
             r: party_one_private.c_key_randomness.clone(),
         };
-        let proof = CLDLProofPublicSetup::prove(
+        let proof = CLDLProof::prove(
             witness,
             context.keypair.pk.clone(),
             context.encrypted_share.clone(),
             GE::generator() * &party_one_private.x1,
-            seed,
         );
 
         proof
@@ -377,6 +376,7 @@ impl Signature {
             .invert(&FE::q())
             .unwrap();
         let s_tag = party_one_private.keypair.decrypt(&partial_sig_c3);
+
         let s_tag_tag = BigInt::mod_mul(&k1_inv, &s_tag, &FE::q());
         let s = cmp::min(s_tag_tag.clone(), FE::q().clone() - s_tag_tag.clone());
         Signature { s, r: rx }

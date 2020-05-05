@@ -15,6 +15,7 @@
 
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
+
 use centipede::juggling::proof_system::{Helgamalsegmented, Witness};
 use centipede::juggling::segmentation::Msegmentation;
 use curv::arithmetic::traits::*;
@@ -26,11 +27,13 @@ use curv::cryptographic_primitives::proofs::sigma_correct_homomorphic_elgamal_en
 use curv::cryptographic_primitives::proofs::sigma_dlog::{DLogProof, ProveDLog};
 use curv::cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS;
 use curv::elliptic::curves::traits::*;
-use curv::{BigInt, FE, GE};
-
-use paillier::{
-    Decrypt, DecryptionKey, EncryptionKey, KeyGeneration, Paillier, RawCiphertext, RawPlaintext,
-};
+use curv::BigInt;
+use curv::FE;
+use curv::GE;
+use paillier::KeyGeneration;
+use paillier::Paillier;
+use paillier::{Decrypt, RawCiphertext, RawPlaintext};
+use paillier::{DecryptionKey, EncryptionKey};
 use serde::{Deserialize, Serialize};
 use zk_paillier::zkproofs::NICorrectKeyProof;
 
@@ -135,10 +138,9 @@ pub struct Phase5DDecom2 {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SignatureRecid {
+pub struct Signature {
     pub r: FE,
     pub s: FE,
-    pub recid: u8,
 }
 
 impl Keys {
@@ -502,9 +504,7 @@ impl LocalSignature {
         }
     }
 
-    pub fn phase5a_broadcast_5b_zkproof(
-        &self,
-    ) -> (Phase5Com1, Phase5ADecom1, HomoELGamalProof, DLogProof) {
+    pub fn phase5a_broadcast_5b_zkproof(&self) -> (Phase5Com1, Phase5ADecom1, HomoELGamalProof) {
         let blind_factor = BigInt::sample(SECURITY);
         let g: GE = ECPoint::generator();
         let A_i = g * self.rho_i;
@@ -527,7 +527,6 @@ impl LocalSignature {
             D: V_i,
             E: B_i,
         };
-        let dlog_proof_rho = DLogProof::prove(&self.rho_i);
         let proof = HomoELGamalProof::prove(&witness, &delta);
 
         (
@@ -539,7 +538,6 @@ impl LocalSignature {
                 blind_factor,
             },
             proof,
-            dlog_proof_rho,
         )
     }
 
@@ -548,7 +546,6 @@ impl LocalSignature {
         decom_vec: &[Phase5ADecom1],
         com_vec: &[Phase5Com1],
         elgamal_proofs: &[HomoELGamalProof],
-        dlog_proofs_rho: &[DLogProof],
         v_i: &GE,
         R: &GE,
     ) -> Result<(Phase5Com2, Phase5DDecom2), Error> {
@@ -576,7 +573,6 @@ impl LocalSignature {
                     &decom_vec[i].blind_factor,
                 ) == com_vec[i].com
                     && elgamal_proofs[i].verify(&delta).is_ok()
-                    && DLogProof::verify(&dlog_proofs_rho[i]).is_ok()
             })
             .all(|x| x);
 
@@ -671,27 +667,10 @@ impl LocalSignature {
             Err(InvalidCom)
         }
     }
-    pub fn output_signature(&self, s_vec: &[FE]) -> Result<SignatureRecid, Error> {
-        let mut s = s_vec.iter().fold(self.s_i, |acc, x| acc + x);
-        let s_bn = s.to_big_int();
-
+    pub fn output_signature(&self, s_vec: &[FE]) -> Result<Signature, Error> {
+        let s = s_vec.iter().fold(self.s_i, |acc, x| acc + x);
         let r: FE = ECScalar::from(&self.R.x_coor().unwrap().mod_floor(&FE::q()));
-        let ry: BigInt = self.R.y_coor().unwrap().mod_floor(&FE::q());
-
-        /*
-         Calculate recovery id - it is not possible to compute the public key out of the signature
-         itself. Recovery id is used to enable extracting the public key uniquely.
-         1. id = R.y & 1
-         2. if (s > curve.q / 2) id = id ^ 1
-        */
-        let is_ry_odd = ry.tstbit(0);
-        let mut recid = if is_ry_odd { 1 } else { 0 };
-        let s_tag_bn = FE::q() - &s_bn;
-        if s_bn > s_tag_bn {
-            s = ECScalar::from(&s_tag_bn);
-            recid = recid ^ 1;
-        }
-        let sig = SignatureRecid { r, s, recid };
+        let sig = Signature { r, s };
         let ver = verify(&sig, &self.y, &self.m).is_ok();
         if ver {
             Ok(sig)
@@ -701,7 +680,7 @@ impl LocalSignature {
     }
 }
 
-pub fn verify(sig: &SignatureRecid, y: &GE, message: &BigInt) -> Result<(), Error> {
+pub fn verify(sig: &Signature, y: &GE, message: &BigInt) -> Result<(), Error> {
     let b = sig.s.invert();
     let a: FE = ECScalar::from(message);
     let u1 = a * b;

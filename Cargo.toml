@@ -1,6 +1,6 @@
 [package]
 name = "multi-party-ecdsa"
-version = "0.3.5"
+version = "0.2.5"
 edition = "2018"
 authors = [
     "Gary <gary@kzencorp.com>",
@@ -29,24 +29,24 @@ crate-type = ["lib"]
 cclst = ["class_group"]
 
 [dependencies]
-paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"}
-zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.8"}
-subtle = { version = "2" }
+paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.3"}
+zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.4"}
+subtle = { version = "2", features = ["nightly"] }
 serde = { version = "1.0", features = ["derive"] }
 zeroize = "0.10.1"
 
 [dependencies.curv]
 git = "https://github.com/KZen-networks/curv"
-tag = "v0.2.3"
-features = ["ec_secp256k1"]
+tag = "v0.2.2"
+features =  ["ec_secp256k1"]
 
 [dependencies.centipede]
 git = "https://github.com/KZen-networks/centipede"
-tag = "v0.2.2"
+tag = "v0.2.1"
 
 [dependencies.class_group]
-git = "https://github.com/KZen-networks/class"
-tag = "v0.4.4"
+git = "https://github.com/KZen-networks/class-groups"
+tag = "v0.1.5"
 optional = true
 
 [dev-dependencies]
@@ -77,17 +77,10 @@ name = "common"
 crate-type = ["lib"]
 
 [[bench]]
-name = "cclst_keygen"
+name = "cclst"
 path = "benches/two_party_ecdsa/cclst_2019/keygen.rs"
 required-features = ["cclst"]
 harness = false
-
-[[bench]]
-name = "cclst_sign"
-path = "benches/two_party_ecdsa/cclst_2019/sign.rs"
-required-features = ["cclst"]
-harness = false
-
 
 [[bench]]
 name = "gg18"
@@ -95,12 +88,6 @@ path = "benches/multi_party_ecdsa/gg18/keygen.rs"
 harness = false
 
 [[bench]]
-name = "lindel2017_keygen"
+name = "lindel2017"
 path = "benches/two_party_ecdsa/lindell_2017/keygen.rs"
-harness = false
-
-
-[[bench]]
-name = "lindel2017_sign"
-path = "benches/two_party_ecdsa/lindell_2017/sign.rs"
 harness = false

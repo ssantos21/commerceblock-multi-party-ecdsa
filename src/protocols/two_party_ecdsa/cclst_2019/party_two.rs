@@ -14,10 +14,10 @@
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
 
-use class_group::primitives::cl_dl_lcm::CLDLProofPublicSetup;
-use class_group::primitives::cl_dl_lcm::Ciphertext;
-use class_group::primitives::cl_dl_lcm::HSMCL;
-use class_group::primitives::cl_dl_lcm::PK as HSMCLPK;
+use class_group::primitives::CLDLProof;
+use class_group::primitives::Ciphertext;
+use class_group::primitives::HSMCL;
+use class_group::primitives::PK as HSMCLPK;
 use curv::arithmetic::traits::*;
 use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
 use curv::cryptographic_primitives::commitments::traits::Commitment;
@@ -67,7 +67,7 @@ pub struct PartialSig {
 
 #[derive(Serialize, Deserialize)]
 pub struct Party2Private {
-    pub x2: FE,
+    x2: FE,
 }
 #[derive(Debug)]
 pub struct PDLchallenge {
@@ -201,15 +201,6 @@ impl KeyGenSecondMsg {
     }
 }
 
-impl HSMCLPublic {
-    pub fn set(ek: &HSMCLPK, encrypted_secret_share: &Ciphertext) -> HSMCLPublic {
-        HSMCLPublic {
-            ek: ek.clone(),
-            encrypted_secret_share: encrypted_secret_share.clone(),
-        }
-    }
-}
-
 pub fn compute_pubkey(local_share: &EcKeyPair, other_share_public_share: &GE) -> GE {
     let pubkey = other_share_public_share.clone();
     pubkey.scalar_mul(&local_share.secret_share.get_element())
@@ -224,7 +215,7 @@ impl Party2Private {
 }
 
 impl HSMCLPublic {
-    pub fn verify_zkcldl_proof(proof: CLDLProofPublicSetup) -> Result<Self, ()> {
+    pub fn verify_zkcldl_proof(proof: CLDLProof) -> Result<(Self), ()> {
         let res = proof.verify();
         match res {
             Ok(_) => Ok(HSMCLPublic {

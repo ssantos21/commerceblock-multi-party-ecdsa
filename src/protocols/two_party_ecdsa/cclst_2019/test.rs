@@ -47,22 +47,14 @@ fn test_full_key_gen() {
     .expect("failed to verify commitments and DLog proof");
 
     // init HSMCL keypair:
-    let seed: BigInt = str::parse(
-            "314159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848"
-        ).unwrap();
-    let hsmcl_key_pair = party_one::HSMCLKeyPair::generate_keypair_and_encrypted_share(
-        &ec_key_pair_party1,
-        seed.clone(),
-    );
+    let hsmcl_key_pair =
+        party_one::HSMCLKeyPair::generate_keypair_and_encrypted_share(&ec_key_pair_party1);
 
     let party_one_private =
         party_one::Party1Private::set_private_key(&ec_key_pair_party1, &hsmcl_key_pair);
 
-    let cldl_proof = party_one::HSMCLKeyPair::generate_zkcldl_proof(
-        &hsmcl_key_pair,
-        &party_one_private,
-        seed.clone(),
-    );
+    let cldl_proof =
+        party_one::HSMCLKeyPair::generate_zkcldl_proof(&hsmcl_key_pair, &party_one_private);
     let _party_two_hsmcl_pub =
         party_two::HSMCLPublic::verify_zkcldl_proof(cldl_proof).expect("proof error");
 }
@@ -76,20 +68,13 @@ fn test_two_party_sign() {
         party_one::KeyGenFirstMsg::create_commitments();
     let (party_two_private_share_gen, ec_key_pair_party2) = party_two::KeyGenFirstMsg::create();
 
-    let seed: BigInt = str::parse(
-        "314159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848"
-    ).unwrap();
-
     let party_one_hsmcl_key_pair =
-        party_one::HSMCLKeyPair::generate_keypair_and_encrypted_share(&ec_key_pair_party1, seed);
+        party_one::HSMCLKeyPair::generate_keypair_and_encrypted_share(&ec_key_pair_party1);
 
-    let party1_private =
-        party_one::Party1Private::set_private_key(&ec_key_pair_party1, &party_one_hsmcl_key_pair);
-
-    let party_two_hsmcl_public = HSMCLPublic::set(
-        &party_one_hsmcl_key_pair.keypair.pk,
-        &party_one_hsmcl_key_pair.encrypted_share,
-    );
+    let party_two_hsmcl_public = HSMCLPublic {
+        ek: party_one_hsmcl_key_pair.keypair.pk.clone(),
+        encrypted_secret_share: party_one_hsmcl_key_pair.encrypted_share.clone(),
+    };
     // creating the ephemeral private shares:
 
     let (eph_party_two_first_message, eph_comm_witness, eph_ec_key_pair_party2) =
@@ -118,6 +103,9 @@ fn test_two_party_sign() {
         &eph_party_one_first_message.public_share,
         &message,
     );
+
+    let party1_private =
+        party_one::Party1Private::set_private_key(&ec_key_pair_party1, &party_one_hsmcl_key_pair);
 
     let signature = party_one::Signature::compute(
         &party1_private,
