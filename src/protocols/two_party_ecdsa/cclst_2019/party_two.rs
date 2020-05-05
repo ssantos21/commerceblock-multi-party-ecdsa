@@ -67,7 +67,7 @@ pub struct PartialSig {
 
 #[derive(Serialize, Deserialize)]
 pub struct Party2Private {
-    x2: FE,
+    pub x2: FE,
 }
 #[derive(Debug)]
 pub struct PDLchallenge {
