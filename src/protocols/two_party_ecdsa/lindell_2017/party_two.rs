@@ -237,6 +237,10 @@ impl Party2Private {
         }
     }
 
+    pub fn get_private_key(&self) -> FE {
+        self.x2
+    }
+
     // used for verifiable recovery
     pub fn to_encrypted_segment(
         &self,
