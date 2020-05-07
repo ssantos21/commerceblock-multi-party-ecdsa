@@ -250,6 +250,9 @@ impl Party1Private {
             c_key_randomness: paillier_key.randomness.clone(),
         }
     }
+    pub fn get_private_key(&self) -> FE {
+        self.x1
+    }
     pub fn refresh_private_key(
         party_one_private: &Party1Private,
         factor: &BigInt,
