@@ -1,6 +1,6 @@
 [package]
 name = "multi-party-ecdsa"
-version = "0.2.5"
+version = "0.2.7"
 edition = "2018"
 authors = [
     "Gary <gary@kzencorp.com>",
@@ -18,7 +18,7 @@ keywords = [
 ]
 
 homepage = "https://github.com/KZen-networks/multi-party-ecdsa"
-repository = "https://github.com/KZen-networks/multi-party-ecdsa"
+repository = "https://github.com/commerceblock/multi-party-ecdsa"
 license = "GPL-3.0-or-later"
 categories = ["cryptography"]
 
