@@ -30,6 +30,7 @@ use curv::elliptic::curves::traits::*;
 use curv::BigInt;
 use curv::FE;
 use curv::GE;
+use curv::arithmetic::big_num::Integer;
 use paillier::Paillier;
 use paillier::{Decrypt, EncryptWithChosenRandomness, KeyGeneration};
 use paillier::{DecryptionKey, EncryptionKey, Randomness, RawCiphertext, RawPlaintext};
@@ -275,7 +276,7 @@ impl Party1Private {
         )
         .0
         .into_owned();
-        let correct_key_proof_new = NICorrectKeyProof::proof(&dk_new);
+        let correct_key_proof_new = NICorrectKeyProof::proof(&dk_new, None);
 
         let range_proof_new = RangeProofNi::prove(
             &ek_new,
@@ -375,7 +376,7 @@ impl PaillierKeyPair {
     }
 
     pub fn generate_ni_proof_correct_key(paillier_context: &PaillierKeyPair) -> NICorrectKeyProof {
-        NICorrectKeyProof::proof(&paillier_context.dk)
+        NICorrectKeyProof::proof(&paillier_context.dk, None)
     }
 
     pub fn pdl_first_stage(
@@ -576,7 +577,7 @@ impl Signature {
          1. id = R.y & 1
          2. if (s > curve.q / 2) id = id ^ 1
         */
-        let is_ry_odd = ry.tstbit(0);
+        let is_ry_odd = ry.test_bit(0);
         let mut recid = if is_ry_odd { 1 } else { 0 };
         if s_tag_tag_bn.clone() > FE::q() - s_tag_tag_bn.clone() {
             recid = recid ^ 1;

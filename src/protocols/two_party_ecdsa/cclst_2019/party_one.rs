@@ -245,7 +245,7 @@ impl HSMCLKeyPair {
     pub fn generate_keypair_and_encrypted_share(keygen: &EcKeyPair) -> HSMCLKeyPair {
         let hsmcl = HSMCL::keygen(&FE::q(), &516);
         let ek = hsmcl.pk.clone();
-        let randomness = BigInt::sample_below(&(&ek.stilde * BigInt::from(2).pow(40)));
+        let randomness = BigInt::sample_below(&(&ek.stilde * BigInt::from(2).pow(40 as u32)));
 
         let encrypted_share = HSMCL::encrypt_predefined_randomness(
             &ek,

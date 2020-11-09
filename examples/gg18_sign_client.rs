@@ -6,6 +6,7 @@ use curv::{
         proofs::sigma_dlog::DLogProof, secret_sharing::feldman_vss::VerifiableSS,
     },
     elliptic::curves::traits::ECScalar,
+    arithmetic::traits::Converter,
     BigInt, FE, GE,
 };
 use multi_party_ecdsa::protocols::multi_party_ecdsa::gg_2018::mta::{MessageA, MessageB};
@@ -303,7 +304,7 @@ fn main() {
     let R = R + decomm_i.g_gamma_i * delta_inv;
 
     // we assume the message is already hashed (by the signer).
-    let message_bn = BigInt::from(message);
+    let message_bn = BigInt::from_vec(message);
     let local_sig =
         LocalSignature::phase5_local_sig(&sign_keys.k_i, &message_bn, &R, &sigma, &y_sum);
 
@@ -473,9 +474,9 @@ fn main() {
 
     let sign_json = serde_json::to_string(&(
         "r",
-        (BigInt::from(&(sig.r.get_element())[..])).to_str_radix(16),
+        (BigInt::from_vec(&(sig.r.get_element())[..])).to_str_radix(16),
         "s",
-        (BigInt::from(&(sig.s.get_element())[..])).to_str_radix(16),
+        (BigInt::from_vec(&(sig.s.get_element())[..])).to_str_radix(16),
     ))
     .unwrap();
 

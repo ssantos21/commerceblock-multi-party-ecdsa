@@ -308,7 +308,7 @@ fn sign(t: u16, n: u16, ttag: u16, s: Vec<usize>) {
         .collect::<Vec<GE>>();
 
     let message: [u8; 4] = [79, 77, 69, 82];
-    let message_bn = HSha256::create_hash(&[&BigInt::from(&message[..])]);
+    let message_bn = HSha256::create_hash(&[&BigInt::from_vec(&message[..])]);
     let mut local_sig_vec = Vec::new();
 
     // each party computes s_i but don't send it yet. we start with phase5

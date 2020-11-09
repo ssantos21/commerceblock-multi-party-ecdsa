@@ -312,11 +312,8 @@ impl PartialSig {
         r = r.scalar_mul(&ephemeral_local_share.secret_share.get_element());
 
         let rx = r.x_coor().unwrap().mod_floor(&q);
-        let k2_inv = &ephemeral_local_share
-            .secret_share
-            .to_big_int()
-            .invert(&q)
-            .unwrap();
+        let k2_inv = BigInt::mod_inv(
+            &ephemeral_local_share.secret_share.to_big_int(), &q);
         let k2_inv_m = BigInt::mod_mul(&k2_inv, message, &q);
         let c1 = HSMCL::encrypt(&party_two_public.ek, &k2_inv_m);
         let v = BigInt::mod_mul(&k2_inv, &local_share.x2.to_big_int(), &q);

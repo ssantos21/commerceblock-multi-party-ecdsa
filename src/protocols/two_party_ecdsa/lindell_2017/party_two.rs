@@ -29,6 +29,7 @@ use curv::elliptic::curves::traits::*;
 use curv::BigInt;
 use curv::FE;
 use curv::GE;
+use curv::arithmetic::big_num::{Pow, Integer};
 use paillier::Paillier;
 use paillier::{Add, Encrypt, Mul};
 use paillier::{EncryptionKey, RawCiphertext, RawPlaintext};
@@ -43,7 +44,7 @@ use super::party_one::KeyGenSecondMsg as Party1KeyGenSecondMessage;
 use super::party_one::PDLFirstMessage as Party1PDLFirstMessage;
 use super::party_one::PDLSecondMessage as Party1PDLSecondMessage;
 use super::SECURITY_BITS;
-use crate::protocols::multi_party_ecdsa::gg_2018::mta::{MessageA, MessageB};
+use crate::{ZK_PAILLIER_SALT_STRING, protocols::multi_party_ecdsa::gg_2018::mta::{MessageA, MessageB}};
 
 use zeroize::Zeroize;
 
@@ -266,7 +267,7 @@ impl PaillierPublic {
         let a_fe: FE = ECScalar::new_random();
         let a = a_fe.to_big_int();
         let q = FE::q();
-        let q_sq = q.pow(2);
+        let q_sq = q.pow(2 as u32);
         let b = BigInt::sample_below(&q_sq);
         let b_fe: FE = ECScalar::from(&b);
         let b_enc = Paillier::encrypt(&self.ek, RawPlaintext::from(b.clone()));
@@ -345,7 +346,7 @@ impl PaillierPublic {
         if ek.n.bit_length() < PAILLIER_KEY_SIZE - 1 {
             return Err(CorrectKeyProofError);
         };
-        proof.verify(&ek)
+        proof.verify(&ek, ZK_PAILLIER_SALT_STRING)
     }
 }
 
@@ -437,12 +438,8 @@ impl PartialSig {
             .scalar_mul(&ephemeral_local_share.secret_share.get_element());
 
         let rx = r.x_coor().unwrap().mod_floor(&q);
-        let rho = BigInt::sample_below(&q.pow(2));
-        let mut k2_inv = ephemeral_local_share
-            .secret_share
-            .to_big_int()
-            .invert(&q)
-            .unwrap();
+        let rho = BigInt::sample_below(&q.pow(2 as u32));
+        let mut k2_inv = BigInt::mod_inv(&ephemeral_local_share.secret_share.to_big_int(), &q);
         let partial_sig = rho * &q + BigInt::mod_mul(&k2_inv, message, &q);
 
         let c1 = Paillier::encrypt(ek, RawPlaintext::from(partial_sig));

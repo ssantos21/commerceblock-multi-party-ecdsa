@@ -164,7 +164,7 @@ fn main() {
             let aead_pack: AEAD = serde_json::from_str(&round3_ans_vec[j]).unwrap();
             let key_i = BigInt::to_vec(&enc_keys[j]);
             let out = aes_decrypt(&key_i, aead_pack);
-            let out_bn = BigInt::from(&out[..]);
+            let out_bn = BigInt::from_vec(&out[..]);
             let out_fe = ECScalar::from(&out_bn);
             party_shares.push(out_fe);
 
