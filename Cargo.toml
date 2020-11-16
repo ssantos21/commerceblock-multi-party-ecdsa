@@ -1,6 +1,6 @@
 [package]
 name = "multi-party-ecdsa"
-version = "0.2.7"
+version = "0.2.8"
 edition = "2018"
 authors = [
     "Gary <gary@kzencorp.com>",
@@ -25,13 +25,10 @@ categories = ["cryptography"]
 [lib]
 crate-type = ["lib"]
 
-# [features]
-# cclst = ["class_group"]
+[features]
+cclst = ["class_group"]
 
 [dependencies]
-paillier = { git = "https://github.com/commerceblock/rust-paillier", tag = "v0.3.5"}
-zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.3.7"}
-centipede = { git = "https://github.com/commerceblock/zk-paillier", tag = "v0.2.7"}
 subtle = { version = "2" }
 serde = { version = "1.0", features = ["derive"] }
 zeroize = "0.10.1"
@@ -41,15 +38,22 @@ git = "https://github.com/commerceblock/curv"
 tag = "v0.2.8"
 features = ["ec_secp256k1"]
 
-# [dependencies.centipede]
-# centipede = { path = "/Users/tomos/cb_repos/centipede"}
-# git = "https://github.com/commerceblock/centipede"
-# tag = "v0.2.7"
+[dependencies.centipede]
+git = "https://github.com/commerceblock/centipede"
+tag = "v0.2.8"
 
-# [dependencies.class_group]
-# git = "https://github.com/KZen-networks/class-groups"
-# tag = "v0.1.5"
-# optional = true
+[dependencies.paillier]
+git = "https://github.com/commerceblock/rust-paillier"
+tag = "v0.3.6"
+
+[dependencies.zk-paillier]
+git = "https://github.com/commerceblock/zk-paillier"
+tag = "v0.3.8"
+
+[dependencies.class_group]
+git = "https://github.com/KZen-networks/class-groups"
+tag = "v0.1.5"
+optional = true
 
 [dev-dependencies]
 criterion = "0.3"
@@ -61,9 +65,6 @@ reqwest = { version = "0.10", default-features = false, features = ["socks", "bl
 uuid = { version = "0.8", features = ["v4"] }
 serde_json = "1.0"
 libsecp256k1 = "0.3.5"
-
-# [patch.crates-io]
-# rust-gmp = { version = "0.5.0", features = ["serde_support"], git = "https://github.com/KZen-networks/rust-gmp" }
 
 [[example]]
 name = "sm_manager"
@@ -78,18 +79,18 @@ name = "gg18_keygen_client"
 name = "common"
 crate-type = ["lib"]
 
-# [[bench]]
-# name = "cclst"
-# path = "benches/two_party_ecdsa/cclst_2019/keygen.rs"
-# required-features = ["cclst"]
-# harness = false
-#
-# [[bench]]
-# name = "gg18"
-# path = "benches/multi_party_ecdsa/gg18/keygen.rs"
-# harness = false
-#
-# [[bench]]
-# name = "lindel2017"
-# path = "benches/two_party_ecdsa/lindell_2017/keygen.rs"
-# harness = false
+[[bench]]
+name = "cclst"
+path = "benches/two_party_ecdsa/cclst_2019/keygen.rs"
+required-features = ["cclst"]
+harness = false
+
+[[bench]]
+name = "gg18"
+path = "benches/multi_party_ecdsa/gg18/keygen.rs"
+harness = false
+
+[[bench]]
+name = "lindel2017"
+path = "benches/two_party_ecdsa/lindell_2017/keygen.rs"
+harness = false
