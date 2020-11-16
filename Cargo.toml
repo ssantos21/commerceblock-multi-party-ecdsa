@@ -1,6 +1,6 @@
 [package]
 name = "multi-party-ecdsa"
-version = "0.2.8"
+version = "0.2.7"
 edition = "2018"
 authors = [
     "Gary <gary@kzencorp.com>",
@@ -35,20 +35,20 @@ zeroize = "0.10.1"
 
 [dependencies.curv]
 git = "https://github.com/commerceblock/curv"
-tag = "v0.2.8"
 features = ["ec_secp256k1"]
+branch = "client_version"
 
 [dependencies.centipede]
 git = "https://github.com/commerceblock/centipede"
-tag = "v0.2.8"
+branch = "client_version"
 
 [dependencies.paillier]
 git = "https://github.com/commerceblock/rust-paillier"
-tag = "v0.3.6"
+branch = "client_version"
 
 [dependencies.zk-paillier]
 git = "https://github.com/commerceblock/zk-paillier"
-tag = "v0.3.8"
+branch = "client_version"
 
 [dependencies.class_group]
 git = "https://github.com/KZen-networks/class-groups"
