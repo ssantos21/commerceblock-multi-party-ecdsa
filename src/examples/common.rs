@@ -10,7 +10,7 @@ use curv::{
     elliptic::curves::traits::{ECPoint, ECScalar},
     BigInt, FE, GE,
 };
-use reqwest::blocking::Client;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 pub type Key = String;
@@ -83,7 +83,7 @@ where
             .json(&body)
             .send();
 
-        if let Ok(res) = res {
+        if let Ok(mut res) = res {
             return Some(res.text().unwrap());
         }
         thread::sleep(retry_delay);

@@ -15,11 +15,12 @@
 */
 
 pub mod protocols;
-
+pub mod utilities;
 #[derive(Copy, PartialEq, Eq, Clone, Debug)]
 pub enum Error {
     InvalidKey,
     InvalidSS,
     InvalidCom,
     InvalidSig,
+    Phase5BadSum,
 }
