@@ -16,13 +16,11 @@
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
 
-use crate::protocols::multi_party_ecdsa::gg_2018::{
-    mta::{MessageA, MessageB},
-    party_i::{
-        verify, KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Keys, LocalSignature, Parameters,
-        PartyPrivate, Phase5ADecom1, Phase5Com1, SharedKeys, SignKeys,
-    },
+use crate::protocols::multi_party_ecdsa::gg_2018::party_i::{
+    verify, KeyGenBroadcastMessage1, KeyGenDecommitMessage1, Keys, LocalSignature, Parameters,
+    PartyPrivate, Phase5ADecom1, Phase5Com1, SharedKeys, SignKeys,
 };
+use crate::utilities::mta::{MessageA, MessageB};
 
 use curv::arithmetic::traits::Converter;
 use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
@@ -147,22 +145,6 @@ fn keygen_t_n_parties(t: u16, n: u16) -> (Vec<Keys>, Vec<SharedKeys>, Vec<GE>, G
     )
 }
 
-#[test]
-fn test_mta() {
-    let alice_input: FE = ECScalar::new_random();
-    let (ek_alice, dk_alice) = Paillier::keypair().keys();
-    let bob_input: FE = ECScalar::new_random();
-    let m_a = MessageA::a(&alice_input, &ek_alice);
-    let (m_b, beta) = MessageB::b(&bob_input, &ek_alice, m_a);
-    let alpha = m_b
-        .verify_proofs_get_alpha(&dk_alice, &alice_input)
-        .expect("wrong dlog or m_b");
-
-    let left = alpha + beta;
-    let right = alice_input * bob_input;
-    assert_eq!(left.get_element(), right.get_element());
-}
-
 fn sign(t: u16, n: u16, ttag: u16, s: Vec<usize>) {
     // full key gen emulation
     let (party_keys_vec, shared_keys_vec, _pk_vec, y, vss_scheme) = keygen_t_n_parties(t, n);
@@ -193,7 +175,7 @@ fn sign(t: u16, n: u16, ttag: u16, s: Vec<usize>) {
     let m_a_vec: Vec<_> = sign_keys_vec
         .iter()
         .enumerate()
-        .map(|(i, k)| MessageA::a(&k.k_i, &party_keys_vec[s[i]].ek))
+        .map(|(i, k)| MessageA::a(&k.k_i, &party_keys_vec[s[i]].ek).0)
         .collect();
 
     // each party i sends responses to m_a_vec she received (one response with input gamma_i and one with w_i)
@@ -214,12 +196,12 @@ fn sign(t: u16, n: u16, ttag: u16, s: Vec<usize>) {
         for j in 0..ttag - 1 {
             let ind = if j < i { j } else { j + 1 };
 
-            let (m_b_gamma, beta_gamma) = MessageB::b(
+            let (m_b_gamma, beta_gamma, _) = MessageB::b(
                 &key.gamma_i,
                 &party_keys_vec[s[ind]].ek,
                 m_a_vec[ind].clone(),
             );
-            let (m_b_w, beta_wi) =
+            let (m_b_w, beta_wi, _) =
                 MessageB::b(&key.w_i, &party_keys_vec[s[ind]].ek, m_a_vec[ind].clone());
 
             m_b_gamma_vec.push(m_b_gamma);
@@ -326,12 +308,15 @@ fn sign(t: u16, n: u16, ttag: u16, s: Vec<usize>) {
     let mut phase5_com_vec: Vec<Phase5Com1> = Vec::new();
     let mut phase_5a_decom_vec: Vec<Phase5ADecom1> = Vec::new();
     let mut helgamal_proof_vec = Vec::new();
+    let mut dlog_proof_rho_vec = Vec::new();
     // we notice that the proof for V= R^sg^l, B = A^l is a general form of homomorphic elgamal.
     for sig in &local_sig_vec {
-        let (phase5_com, phase_5a_decom, helgamal_proof) = sig.phase5a_broadcast_5b_zkproof();
+        let (phase5_com, phase_5a_decom, helgamal_proof, dlog_proof_rho) =
+            sig.phase5a_broadcast_5b_zkproof();
         phase5_com_vec.push(phase5_com);
         phase_5a_decom_vec.push(phase_5a_decom);
         helgamal_proof_vec.push(helgamal_proof);
+        dlog_proof_rho_vec.push(dlog_proof_rho);
     }
 
     let mut phase5_com2_vec = Vec::new();
@@ -350,6 +335,7 @@ fn sign(t: u16, n: u16, ttag: u16, s: Vec<usize>) {
                 &phase_5a_decom_vec_clone,
                 &phase_5a_com_vec_clone,
                 &phase_5b_elgamal_vec_clone,
+                &dlog_proof_rho_vec,
                 &phase_5a_decom_vec[i].V_i,
                 &R_vec[0],
             )
