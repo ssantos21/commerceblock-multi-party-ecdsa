@@ -29,27 +29,20 @@ crate-type = ["lib"]
 cclst = ["class_group"]
 
 [dependencies]
+paillier = { git = "https://github.com/KZen-networks/rust-paillier", tag = "v0.3.4"}
+zk-paillier = { git = "https://github.com/KZen-networks/zk-paillier", tag = "v0.2.8"}
 subtle = { version = "2" }
 serde = { version = "1.0", features = ["derive"] }
 zeroize = "0.10.1"
-num-traits = "0.2"
 
 [dependencies.curv]
-git = "https://github.com/commerceblock/curv"
+git = "https://github.com/KZen-networks/curv"
+tag = "v0.2.3"
 features = ["ec_secp256k1"]
-branch = "client_version_2"
 
 [dependencies.centipede]
-git = "https://github.com/commerceblock/centipede"
-branch = "client_version_2"
-
-[dependencies.paillier]
-git = "https://github.com/commerceblock/rust-paillier"
-branch = "client_version_2"
-
-[dependencies.zk-paillier]
-git = "https://github.com/commerceblock/zk-paillier"
-branch = "client_version_2"
+git = "https://github.com/KZen-networks/centipede"
+tag = "v0.2.2"
 
 [dependencies.class_group]
 git = "https://github.com/KZen-networks/class"
@@ -60,12 +53,15 @@ optional = true
 criterion = "0.3"
 rust-crypto = "0.2"
 hex = "0.4"
-rocket = { version = "0.4.5", default-features = false }
-rocket_contrib = "0.4.5"
-reqwest = { version = "0.10", default-features = false , features = ["socks", "blocking", "json"]}
+rocket = { version = "0.4.2", default-features = false }
+rocket_contrib = "0.4.2"
+reqwest = { version = "0.9", default-features = false }
 uuid = { version = "0.8", features = ["v4"] }
 serde_json = "1.0"
-libsecp256k1 = "0.3.5"
+libsecp256k1 = "0.3.2"
+
+[patch.crates-io]
+rust-gmp = { version = "0.5.0", features = ["serde_support"], git = "https://github.com/KZen-networks/rust-gmp" }
 
 [[example]]
 name = "sm_manager"

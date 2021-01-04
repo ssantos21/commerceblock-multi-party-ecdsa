@@ -26,6 +26,7 @@ fn test_d_log_proof_party_two_party_one() {
 #[test]
 
 fn test_full_key_gen() {
+    println!("create commitments");
     let (party_one_first_message, comm_witness, ec_key_pair_party1) =
         party_one::KeyGenFirstMsg::create_commitments_with_fixed_secret_share(ECScalar::from(
             &BigInt::sample(253),
@@ -39,7 +40,7 @@ fn test_full_key_gen() {
         &party_two_first_message.d_log_proof,
     )
     .expect("failed to verify and decommit");
-
+    println!("verify commitments");
     let _party_two_second_message = party_two::KeyGenSecondMsg::verify_commitments_and_dlog_proof(
         &party_one_first_message,
         &party_one_second_message,
@@ -47,6 +48,7 @@ fn test_full_key_gen() {
     .expect("failed to verify commitments and DLog proof");
 
     // init paillier keypair:
+    println!("init paillier keypair");
     let paillier_key_pair =
         party_one::PaillierKeyPair::generate_keypair_and_encrypted_share(&ec_key_pair_party1);
 
@@ -58,6 +60,8 @@ fn test_full_key_gen() {
         encrypted_secret_share: paillier_key_pair.encrypted_share.clone(),
     };
 
+    // zk proof of correct paillier key
+    println!("zk proof");
     let correct_key_proof =
         party_one::PaillierKeyPair::generate_ni_proof_correct_key(&paillier_key_pair);
     party_two::PaillierPublic::verify_ni_proof_correct_key(
@@ -65,41 +69,20 @@ fn test_full_key_gen() {
         &party_two_paillier.ek,
     )
     .expect("bad paillier key");
-    // zk proof of correct paillier key
 
-    // zk range proof
-    let range_proof =
-        party_one::PaillierKeyPair::generate_range_proof(&paillier_key_pair, &party_one_private);
-    party_two::PaillierPublic::verify_range_proof(&party_two_paillier, &range_proof)
-        .expect("range proof error");
-
-    // pdl proof minus range proof
-    let (party_two_pdl_first_message, pdl_chal_party2) =
-        party_two_paillier.pdl_challenge(&party_one_second_message.comm_witness.public_share);
-
-    let (party_one_pdl_first_message, pdl_decommit_party1, alpha) =
-        party_one::PaillierKeyPair::pdl_first_stage(
-            &party_one_private,
-            &party_two_pdl_first_message,
-        );
-
-    let party_two_pdl_second_message =
-        party_two::PaillierPublic::pdl_decommit_c_tag_tag(&pdl_chal_party2);
-    let party_one_pdl_second_message = party_one::PaillierKeyPair::pdl_second_stage(
-        &party_two_pdl_first_message,
-        &party_two_pdl_second_message,
-        party_one_private,
-        pdl_decommit_party1,
-        alpha,
+    //zk_pdl
+    println!("zk pdl proof");
+    let (pdl_statement, pdl_proof, composite_dlog_proof) =
+        party_one::PaillierKeyPair::pdl_proof(&party_one_private, &paillier_key_pair);
+    println!("zk pdl verify");
+    party_two::PaillierPublic::pdl_verify(
+        &composite_dlog_proof,
+        &pdl_statement,
+        &pdl_proof,
+        &party_two_paillier,
+        &party_one_second_message.comm_witness.public_share,
     )
-    .expect("pdl error party2");
-
-    party_two::PaillierPublic::verify_pdl(
-        &pdl_chal_party2,
-        &party_one_pdl_first_message,
-        &party_one_pdl_second_message,
-    )
-    .expect("pdl error party1")
+    .expect("PDL error");
 }
 
 #[test]
