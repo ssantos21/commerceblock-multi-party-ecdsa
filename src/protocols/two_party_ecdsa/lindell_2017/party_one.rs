@@ -371,19 +371,15 @@ impl PaillierKeyPair {
         party1_private: &Party1Private,
         paillier_key_pair: &PaillierKeyPair,
     ) -> (PDLwSlackStatement, PDLwSlackProof, CompositeDLogProof) {
-        println!("generate tilde");
         let (n_tilde, h1, h2, xhi) = generate_h1_h2_n_tilde();
-        println!("dlog");
         let dlog_statement = DLogStatement {
             N: n_tilde,
             g: h1,
             ni: h2,
         };
-        println!("composite dlog");
         let composite_dlog_proof = CompositeDLogProof::prove(&dlog_statement, &xhi);
 
         // Generate PDL with slack statement, witness and proof
-        println!("pdl");
         let pdl_w_slack_statement = PDLwSlackStatement {
             ciphertext: paillier_key_pair.encrypted_share.clone(),
             ek: paillier_key_pair.ek.clone(),
@@ -393,13 +389,11 @@ impl PaillierKeyPair {
             h2: dlog_statement.ni.clone(),
             N_tilde: dlog_statement.N.clone(),
         };
-        println!("witness");
         let pdl_w_slack_witness = PDLwSlackWitness {
             x: party1_private.x1.clone(),
             r: party1_private.c_key_randomness.clone(),
             dk: party1_private.paillier_priv.clone(),
         };
-        println!("slack proof");
         let pdl_w_slack_proof = PDLwSlackProof::prove(&pdl_w_slack_witness, &pdl_w_slack_statement);
         (
             pdl_w_slack_statement,
@@ -595,10 +589,8 @@ pub fn generate_h1_h2_n_tilde() -> (BigInt, BigInt, BigInt, BigInt) {
     let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
     let one = BigInt::one();
     let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
-    println!("generate h1");
     let h1 = BigInt::sample_below(&phi);
     let xhi = BigInt::sample(SECURITY_BITS);
-    println!("generate h2");
     let h2 = BigInt::mod_pow(&h1, &(-&xhi), &ek_tilde.n);
 
     (ek_tilde.n, h1, h2, xhi)

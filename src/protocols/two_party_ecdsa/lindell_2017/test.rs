@@ -26,7 +26,6 @@ fn test_d_log_proof_party_two_party_one() {
 #[test]
 
 fn test_full_key_gen() {
-    println!("create commitments");
     let (party_one_first_message, comm_witness, ec_key_pair_party1) =
         party_one::KeyGenFirstMsg::create_commitments_with_fixed_secret_share(ECScalar::from(
             &BigInt::sample(253),
@@ -40,7 +39,6 @@ fn test_full_key_gen() {
         &party_two_first_message.d_log_proof,
     )
     .expect("failed to verify and decommit");
-    println!("verify commitments");
     let _party_two_second_message = party_two::KeyGenSecondMsg::verify_commitments_and_dlog_proof(
         &party_one_first_message,
         &party_one_second_message,
@@ -48,7 +46,6 @@ fn test_full_key_gen() {
     .expect("failed to verify commitments and DLog proof");
 
     // init paillier keypair:
-    println!("init paillier keypair");
     let paillier_key_pair =
         party_one::PaillierKeyPair::generate_keypair_and_encrypted_share(&ec_key_pair_party1);
 
@@ -61,7 +58,6 @@ fn test_full_key_gen() {
     };
 
     // zk proof of correct paillier key
-    println!("zk proof");
     let correct_key_proof =
         party_one::PaillierKeyPair::generate_ni_proof_correct_key(&paillier_key_pair);
     party_two::PaillierPublic::verify_ni_proof_correct_key(
@@ -71,10 +67,8 @@ fn test_full_key_gen() {
     .expect("bad paillier key");
 
     //zk_pdl
-    println!("zk pdl proof");
     let (pdl_statement, pdl_proof, composite_dlog_proof) =
         party_one::PaillierKeyPair::pdl_proof(&party_one_private, &paillier_key_pair);
-    println!("zk pdl verify");
     party_two::PaillierPublic::pdl_verify(
         &composite_dlog_proof,
         &pdl_statement,
