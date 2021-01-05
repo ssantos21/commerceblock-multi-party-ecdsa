@@ -595,8 +595,10 @@ pub fn generate_h1_h2_n_tilde() -> (BigInt, BigInt, BigInt, BigInt) {
     let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
     let one = BigInt::one();
     let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
+    println!("generate h1");
     let h1 = BigInt::sample_below(&phi);
     let xhi = BigInt::sample(SECURITY_BITS);
+    println!("generate h2");
     let h2 = BigInt::mod_pow(&h1, &(-&xhi), &ek_tilde.n);
 
     (ek_tilde.n, h1, h2, xhi)
