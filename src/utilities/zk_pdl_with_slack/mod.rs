@@ -50,13 +50,13 @@ pub struct PDLwSlackWitness {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PDLwSlackProof {
-    z: BigInt,
-    u1: GE,
-    u2: BigInt,
-    u3: BigInt,
-    s1: BigInt,
-    s2: BigInt,
-    s3: BigInt,
+    pub z: BigInt,
+    pub u1: GE,
+    pub u2: BigInt,
+    pub u3: BigInt,
+    pub s1: BigInt,
+    pub s2: BigInt,
+    pub s3: BigInt,
 }
 
 impl PDLwSlackProof {
