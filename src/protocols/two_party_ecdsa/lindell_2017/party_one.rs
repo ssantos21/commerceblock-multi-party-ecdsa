@@ -14,7 +14,6 @@
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
 use std::cmp;
-use std::ops::Shl;
 
 use centipede::juggling::proof_system::{Helgamalsegmented, Witness};
 use centipede::juggling::segmentation::Msegmentation;
@@ -30,23 +29,26 @@ use curv::elliptic::curves::traits::*;
 use curv::BigInt;
 use curv::FE;
 use curv::GE;
-use curv::arithmetic::big_num::Integer;
+use curv::arithmetic::big_num::{Pow, One, Integer};
 use paillier::Paillier;
 use paillier::{Decrypt, EncryptWithChosenRandomness, KeyGeneration};
 use paillier::{DecryptionKey, EncryptionKey, Randomness, RawCiphertext, RawPlaintext};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
-use zk_paillier::zkproofs::{NICorrectKeyProof, RangeProofNi};
+use zk_paillier::zkproofs::NICorrectKeyProof;
 
 use super::party_two::EphKeyGenFirstMsg as Party2EphKeyGenFirstMessage;
 use super::party_two::EphKeyGenSecondMsg as Party2EphKeyGenSecondMessage;
-use super::party_two::PDLFirstMessage as Party2PDLFirstMessage;
-use super::party_two::PDLSecondMessage as Party2PDLSecondMessage;
 use super::SECURITY_BITS;
 
-use crate::protocols::multi_party_ecdsa::gg_2018::mta::MessageB;
+use crate::utilities::mta::MessageB;
 use crate::Error;
+
+use crate::utilities::zk_pdl_with_slack::PDLwSlackProof;
+use crate::utilities::zk_pdl_with_slack::PDLwSlackStatement;
+use crate::utilities::zk_pdl_with_slack::PDLwSlackWitness;
+use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
 //****************** Begin: Party One structs ******************//
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -140,10 +142,7 @@ impl KeyGenFirstMsg {
     pub fn create_commitments() -> (KeyGenFirstMsg, CommWitness, EcKeyPair) {
         let base: GE = ECPoint::generator();
 
-        let mut scalar: FE = ECScalar::new_random();
-        //in Lindell's protocol range proof works only for x1<q/3
-        let mut secret_share: FE = ECScalar::from(&scalar.to_big_int().div_floor(&BigInt::from(3)));
-        scalar.zeroize();
+        let mut secret_share: FE = ECScalar::new_random();
 
         let public_share = base.scalar_mul(&secret_share.get_element());
 
@@ -185,10 +184,6 @@ impl KeyGenFirstMsg {
     pub fn create_commitments_with_fixed_secret_share(
         mut secret_share: FE,
     ) -> (KeyGenFirstMsg, CommWitness, EcKeyPair) {
-        //in Lindell's protocol range proof works only for x1<q/3
-        let sk_bigint = secret_share.to_big_int();
-        let q_third = FE::q();
-        assert!(sk_bigint < q_third.div_floor(&BigInt::from(3)));
         let base: GE = ECPoint::generator();
         let public_share = base.scalar_mul(&secret_share.get_element());
 
@@ -262,13 +257,14 @@ impl Party1Private {
         BigInt,
         Party1Private,
         NICorrectKeyProof,
-        RangeProofNi,
+        PDLwSlackStatement,
+        PDLwSlackProof,
+        CompositeDLogProof,
     ) {
         let (ek_new, dk_new) = Paillier::keypair().keys();
         let randomness = Randomness::sample(&ek_new);
         let factor_fe: FE = ECScalar::from(&factor);
         let x1_new = party_one_private.x1 * factor_fe;
-        let three = BigInt::from(3);
         let c_key_new = Paillier::encrypt_with_chosen_randomness(
             &ek_new,
             RawPlaintext::from(x1_new.to_big_int().clone()),
@@ -278,13 +274,12 @@ impl Party1Private {
         .into_owned();
         let correct_key_proof_new = NICorrectKeyProof::proof(&dk_new, None);
 
-        let range_proof_new = RangeProofNi::prove(
-            &ek_new,
-            &(FE::q() * three.clone()),
-            &c_key_new,
-            &x1_new.to_big_int(),
-            &randomness.0,
-        );
+        let paillier_key_pair = PaillierKeyPair {
+            ek: ek_new.clone(),
+            dk: dk_new.clone(),
+            encrypted_share: c_key_new.clone(),
+            randomness: randomness.0.clone(),
+        };
 
         let party_one_private_new = Party1Private {
             x1: x1_new,
@@ -292,12 +287,17 @@ impl Party1Private {
             c_key_randomness: randomness.0,
         };
 
+        let (pdl_statement, pdl_proof, composite_dlog_proof) =
+            PaillierKeyPair::pdl_proof(&party_one_private_new, &paillier_key_pair);
+
         (
             ek_new,
             c_key_new,
             party_one_private_new,
             correct_key_proof_new,
-            range_proof_new,
+            pdl_statement,
+            pdl_proof,
+            composite_dlog_proof,
         )
     }
 
@@ -362,70 +362,45 @@ impl PaillierKeyPair {
         }
     }
 
-    pub fn generate_range_proof(
-        paillier_context: &PaillierKeyPair,
-        party_one_private: &Party1Private,
-    ) -> RangeProofNi {
-        RangeProofNi::prove(
-            &paillier_context.ek,
-            &FE::q(),
-            &paillier_context.encrypted_share.clone(),
-            &party_one_private.x1.to_big_int(),
-            &paillier_context.randomness,
-        )
-    }
-
     pub fn generate_ni_proof_correct_key(paillier_context: &PaillierKeyPair) -> NICorrectKeyProof {
         NICorrectKeyProof::proof(&paillier_context.dk, None)
     }
 
-    pub fn pdl_first_stage(
-        party_one_private: &Party1Private,
-        pdl_first_message: &Party2PDLFirstMessage,
-    ) -> (PDLFirstMessage, PDLdecommit, BigInt) {
-        let c_tag = pdl_first_message.c_tag.clone();
-        let alpha = Paillier::decrypt(
-            &party_one_private.paillier_priv.clone(),
-            &RawCiphertext::from(c_tag.clone()),
-        );
-        let alpha_fe: FE = ECScalar::from(&alpha.0);
-        let g: GE = ECPoint::generator();
-        let q_hat = g * alpha_fe;
-        let blindness = BigInt::sample_below(&FE::q());
-        let c_hat = HashCommitment::create_commitment_with_user_defined_randomness(
-            &q_hat.bytes_compressed_to_big_int(),
-            &blindness,
-        );
+    pub fn pdl_proof(
+        party1_private: &Party1Private,
+        paillier_key_pair: &PaillierKeyPair,
+    ) -> (PDLwSlackStatement, PDLwSlackProof, CompositeDLogProof) {
+        let (n_tilde, h1, h2, xhi) = generate_h1_h2_n_tilde();
+        let dlog_statement = DLogStatement {
+            N: n_tilde,
+            g: h1,
+            ni: h2,
+        };
+        let composite_dlog_proof = CompositeDLogProof::prove(&dlog_statement, &xhi);
+
+        // Generate PDL with slack statement, witness and proof
+        let pdl_w_slack_statement = PDLwSlackStatement {
+            ciphertext: paillier_key_pair.encrypted_share.clone(),
+            ek: paillier_key_pair.ek.clone(),
+            Q: GE::generator() * &party1_private.x1,
+            G: GE::generator(),
+            h1: dlog_statement.g.clone(),
+            h2: dlog_statement.ni.clone(),
+            N_tilde: dlog_statement.N.clone(),
+        };
+
+        let pdl_w_slack_witness = PDLwSlackWitness {
+            x: party1_private.x1.clone(),
+            r: party1_private.c_key_randomness.clone(),
+            dk: party1_private.paillier_priv.clone(),
+        };
+
+        let pdl_w_slack_proof = PDLwSlackProof::prove(&pdl_w_slack_witness, &pdl_w_slack_statement);
         (
-            PDLFirstMessage { c_hat },
-            PDLdecommit { blindness, q_hat },
-            alpha.0.into_owned(),
+            pdl_w_slack_statement,
+            pdl_w_slack_proof,
+            composite_dlog_proof,
         )
-    }
-
-    pub fn pdl_second_stage(
-        pdl_party_two_first_message: &Party2PDLFirstMessage,
-        pdl_party_two_second_message: &Party2PDLSecondMessage,
-        party_one_private: Party1Private,
-        pdl_decommit: PDLdecommit,
-        alpha: BigInt,
-    ) -> Result<PDLSecondMessage, ()> {
-        let a = pdl_party_two_second_message.decommit.a.clone();
-        let b = pdl_party_two_second_message.decommit.b.clone();
-        let blindness = pdl_party_two_second_message.decommit.blindness.clone();
-
-        let ab_concat = a.clone() + b.clone().shl(a.bit_length()); // b|a (in the paper it is a|b)
-        let c_tag_tag_test =
-            HashCommitment::create_commitment_with_user_defined_randomness(&ab_concat, &blindness);
-        let ax1 = a.clone() * party_one_private.x1.to_big_int();
-        let alpha_test = ax1 + b.clone();
-        if alpha_test == alpha && pdl_party_two_first_message.c_tag_tag.clone() == c_tag_tag_test {
-            Ok(PDLSecondMessage {
-                decommit: pdl_decommit,
-            })
-        } else {
-            Err(())
-        }
     }
 }
 
@@ -569,7 +544,7 @@ impl Signature {
         k1_inv.zeroize();
         s_tag_fe.zeroize();
         let s_tag_tag_bn = s_tag_tag.to_big_int();
-        let s = cmp::min(s_tag_tag_bn.clone(), FE::q().clone() - s_tag_tag_bn.clone());
+        let s = cmp::min(s_tag_tag_bn.clone(), FE::q() - &s_tag_tag_bn);
 
         /*
          Calculate recovery id - it is not possible to compute the public key out of the signature
@@ -607,4 +582,18 @@ pub fn verify(signature: &Signature, pubkey: &GE, message: &BigInt) -> Result<()
     } else {
         Err(Error::InvalidSig)
     }
+}
+
+pub fn generate_h1_h2_n_tilde() -> (BigInt, BigInt, BigInt, BigInt) {
+    //note, should be safe primes:
+    // let (ek_tilde, dk_tilde) = Paillier::keypair_safe_primes().keys();;
+    let (ek_tilde, dk_tilde) = Paillier::keypair().keys();
+    let one = BigInt::one();
+    let phi = (&dk_tilde.p - &one) * (&dk_tilde.q - &one);
+    let h1 = BigInt::sample_below(&phi);
+    let s = BigInt::from(2).pow(256 as u32);
+    let xhi = BigInt::sample_below(&s);
+    let h2 = BigInt::mod_pow(&h1, &(-&xhi), &ek_tilde.n);
+
+    (ek_tilde.n, h1, h2, xhi)
 }

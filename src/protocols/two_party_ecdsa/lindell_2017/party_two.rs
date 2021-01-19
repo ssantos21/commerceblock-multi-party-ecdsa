@@ -13,7 +13,6 @@
 
     @license GPL-3.0+ <https://github.com/KZen-networks/multi-party-ecdsa/blob/master/LICENSE>
 */
-use std::ops::Shl;
 
 use centipede::juggling::proof_system::{Helgamalsegmented, Witness};
 use centipede::juggling::segmentation::Msegmentation;
@@ -34,19 +33,19 @@ use paillier::Paillier;
 use paillier::{Add, Encrypt, Mul};
 use paillier::{EncryptionKey, RawCiphertext, RawPlaintext};
 use serde::{Deserialize, Serialize};
-use zk_paillier::zkproofs::{
-    CorrectKeyProofError, NICorrectKeyProof, RangeProofError, RangeProofNi,
-};
+use zk_paillier::zkproofs::{CorrectKeyProofError, NICorrectKeyProof};
 
 use super::party_one::EphKeyGenFirstMsg as Party1EphKeyGenFirstMsg;
 use super::party_one::KeyGenFirstMsg as Party1KeyGenFirstMessage;
 use super::party_one::KeyGenSecondMsg as Party1KeyGenSecondMessage;
-use super::party_one::PDLFirstMessage as Party1PDLFirstMessage;
-use super::party_one::PDLSecondMessage as Party1PDLSecondMessage;
 use super::SECURITY_BITS;
-use crate::{ZK_PAILLIER_SALT_STRING, protocols::multi_party_ecdsa::gg_2018::mta::{MessageA, MessageB}};
+use crate::utilities::mta::{MessageA, MessageB};
+use crate::ZK_PAILLIER_SALT_STRING;
 
+use crate::utilities::zk_pdl_with_slack::PDLwSlackProof;
+use crate::utilities::zk_pdl_with_slack::PDLwSlackStatement;
 use zeroize::Zeroize;
+use zk_paillier::zkproofs::{CompositeDLogProof, DLogStatement};
 
 const PAILLIER_KEY_SIZE: usize = 2048;
 //****************** Begin: Party Two structs ******************//
@@ -258,84 +257,37 @@ impl Party2Private {
         let message_a = MessageA {
             c: ciphertext.clone(),
         };
-        MessageB::b(&self.x2, &ek, message_a)
+        let (a, b, _) = MessageB::b(&self.x2, &ek, message_a);
+        (a, b)
     }
 }
 
 impl PaillierPublic {
-    pub fn pdl_challenge(&self, other_share_public_share: &GE) -> (PDLFirstMessage, PDLchallenge) {
-        let a_fe: FE = ECScalar::new_random();
-        let a = a_fe.to_big_int();
-        let q = FE::q();
-        let q_sq = q.pow(2 as u32);
-        let b = BigInt::sample_below(&q_sq);
-        let b_fe: FE = ECScalar::from(&b);
-        let b_enc = Paillier::encrypt(&self.ek, RawPlaintext::from(b.clone()));
-        let ac = Paillier::mul(
-            &self.ek,
-            RawCiphertext::from(self.encrypted_secret_share.clone()),
-            RawPlaintext::from(a.clone()),
-        );
-        let c_tag = Paillier::add(&self.ek, ac, b_enc).0.into_owned();
-        let ab_concat = a.clone() + b.clone().shl(a.bit_length());
-        let blindness = BigInt::sample_below(&q);
-        let c_tag_tag =
-            HashCommitment::create_commitment_with_user_defined_randomness(&ab_concat, &blindness);
-        let g: GE = ECPoint::generator();
-        let q_tag = other_share_public_share * &a_fe + g * b_fe;
-
-        (
-            PDLFirstMessage {
-                c_tag: c_tag.clone(),
-                c_tag_tag: c_tag_tag.clone(),
-            },
-            PDLchallenge {
-                c_tag,
-                c_tag_tag,
-                a,
-                b,
-                blindness,
-                q_tag,
-            },
-        )
-    }
-
-    pub fn pdl_decommit_c_tag_tag(pdl_chal: &PDLchallenge) -> PDLSecondMessage {
-        let decommit = PDLdecommit {
-            a: pdl_chal.a.clone(),
-            b: pdl_chal.b.clone(),
-            blindness: pdl_chal.blindness.clone(),
-        };
-        PDLSecondMessage { decommit }
-    }
-
-    pub fn verify_pdl(
-        pdl_chal: &PDLchallenge,
-        party_one_pdl_first_message: &Party1PDLFirstMessage,
-        party_one_pdl_second_message: &Party1PDLSecondMessage,
+    pub fn pdl_verify(
+        composite_dlog_proof: &CompositeDLogProof,
+        pdl_w_slack_statement: &PDLwSlackStatement,
+        pdl_w_slack_proof: &PDLwSlackProof,
+        paillier_public: &PaillierPublic,
+        q1: &GE,
     ) -> Result<(), ()> {
-        let c_hat = party_one_pdl_first_message.c_hat.clone();
-        let q_hat = party_one_pdl_second_message.decommit.q_hat;
-        let blindness = party_one_pdl_second_message.decommit.blindness.clone();
-        let c_hat_test = HashCommitment::create_commitment_with_user_defined_randomness(
-            &q_hat.bytes_compressed_to_big_int(),
-            &blindness,
-        );
-        if c_hat.clone() == c_hat_test && q_hat.get_element() == pdl_chal.q_tag.get_element() {
-            Ok(())
-        } else {
-            Err(())
+        if &pdl_w_slack_statement.ek != &paillier_public.ek
+            || &pdl_w_slack_statement.ciphertext != &paillier_public.encrypted_secret_share
+            || &pdl_w_slack_statement.Q != q1
+        {
+            return Err(());
         }
-    }
-
-    pub fn verify_range_proof(
-        paillier_context: &PaillierPublic,
-        range_proof: &RangeProofNi,
-    ) -> Result<(), RangeProofError> {
-        range_proof.verify(
-            &paillier_context.ek,
-            &paillier_context.encrypted_secret_share,
-        )
+        let dlog_statement = DLogStatement {
+            N: pdl_w_slack_statement.N_tilde.clone(),
+            g: pdl_w_slack_statement.h1.clone(),
+            ni: pdl_w_slack_statement.h2.clone(),
+        };
+        if composite_dlog_proof.verify(&dlog_statement).is_ok()
+            && pdl_w_slack_proof.verify(&pdl_w_slack_statement).is_ok()
+        {
+            return Ok(());
+        } else {
+            return Err(());
+        }
     }
 
     pub fn verify_ni_proof_correct_key(

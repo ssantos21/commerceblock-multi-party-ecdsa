@@ -83,7 +83,7 @@ where
             .json(&body)
             .send();
 
-        if let Ok(mut res) = res {
+        if let Ok(res) = res {
             return Some(res.text().unwrap());
         }
         thread::sleep(retry_delay);

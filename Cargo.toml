@@ -1,6 +1,6 @@
 [package]
 name = "multi-party-ecdsa"
-version = "0.2.7"
+version = "0.3.7"
 edition = "2018"
 authors = [
     "Gary <gary@kzencorp.com>",
@@ -35,8 +35,8 @@ zeroize = "0.10.1"
 
 [dependencies.curv]
 git = "https://github.com/commerceblock/curv"
-features = ["ec_secp256k1"]
 branch = "client_version"
+features = ["ec_secp256k1"]
 
 [dependencies.centipede]
 git = "https://github.com/commerceblock/centipede"
@@ -51,8 +51,8 @@ git = "https://github.com/commerceblock/zk-paillier"
 branch = "client_version"
 
 [dependencies.class_group]
-git = "https://github.com/KZen-networks/class-groups"
-tag = "v0.1.5"
+git = "https://github.com/KZen-networks/class"
+tag = "v0.4.4"
 optional = true
 
 [dev-dependencies]
@@ -80,10 +80,17 @@ name = "common"
 crate-type = ["lib"]
 
 [[bench]]
-name = "cclst"
+name = "cclst_keygen"
 path = "benches/two_party_ecdsa/cclst_2019/keygen.rs"
 required-features = ["cclst"]
 harness = false
+
+[[bench]]
+name = "cclst_sign"
+path = "benches/two_party_ecdsa/cclst_2019/sign.rs"
+required-features = ["cclst"]
+harness = false
+
 
 [[bench]]
 name = "gg18"
@@ -91,6 +98,12 @@ path = "benches/multi_party_ecdsa/gg18/keygen.rs"
 harness = false
 
 [[bench]]
-name = "lindel2017"
+name = "lindel2017_keygen"
 path = "benches/two_party_ecdsa/lindell_2017/keygen.rs"
+harness = false
+
+
+[[bench]]
+name = "lindel2017_sign"
+path = "benches/two_party_ecdsa/lindell_2017/sign.rs"
 harness = false

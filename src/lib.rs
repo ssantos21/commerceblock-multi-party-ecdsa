@@ -15,13 +15,14 @@
 */
 
 pub mod protocols;
-
+pub mod utilities;
 #[derive(Copy, PartialEq, Eq, Clone, Debug)]
 pub enum Error {
     InvalidKey,
     InvalidSS,
     InvalidCom,
     InvalidSig,
+    Phase5BadSum,
 }
 
 const ZK_PAILLIER_SALT_STRING: &[u8] = &[75, 90, 101, 110];
