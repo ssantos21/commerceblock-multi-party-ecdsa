@@ -189,7 +189,7 @@ impl Keys {
         &self,
     ) -> (KeyGenBroadcastMessage1, KeyGenDecommitMessage1) {
         let blind_factor = BigInt::sample(SECURITY);
-        let correct_key_proof = NICorrectKeyProof::proof(&self.dk, None);
+        let correct_key_proof = NICorrectKeyProof::proof(&self.dk);
         let com = HashCommitment::create_commitment_with_user_defined_randomness(
             &self.y_i.bytes_compressed_to_big_int(),
             &blind_factor,
@@ -222,7 +222,7 @@ impl Keys {
                     &decom_vec[i].y_i.bytes_compressed_to_big_int(),
                     &decom_vec[i].blind_factor,
                 ) == bc1_vec[i].com
-                    && bc1_vec[i].correct_key_proof.verify(&bc1_vec[i].e, ZK_PAILLIER_SALT_STRING).is_ok()
+                    && bc1_vec[i].correct_key_proof.verify(&bc1_vec[i].e).is_ok()
             })
             .all(|x| x);
 

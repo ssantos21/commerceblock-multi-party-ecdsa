@@ -272,7 +272,7 @@ impl Party1Private {
         )
         .0
         .into_owned();
-        let correct_key_proof_new = NICorrectKeyProof::proof(&dk_new, None);
+        let correct_key_proof_new = NICorrectKeyProof::proof(&dk_new);
 
         let paillier_key_pair = PaillierKeyPair {
             ek: ek_new.clone(),
@@ -363,7 +363,7 @@ impl PaillierKeyPair {
     }
 
     pub fn generate_ni_proof_correct_key(paillier_context: &PaillierKeyPair) -> NICorrectKeyProof {
-        NICorrectKeyProof::proof(&paillier_context.dk, None)
+        NICorrectKeyProof::proof(&paillier_context.dk)
     }
 
     pub fn pdl_proof(

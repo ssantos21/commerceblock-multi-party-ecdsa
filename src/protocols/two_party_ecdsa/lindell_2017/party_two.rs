@@ -298,7 +298,7 @@ impl PaillierPublic {
         if ek.n.bit_length() < PAILLIER_KEY_SIZE - 1 {
             return Err(CorrectKeyProofError);
         };
-        proof.verify(&ek, ZK_PAILLIER_SALT_STRING)
+        proof.verify(&ek)
     }
 }
 
