@@ -210,7 +210,7 @@ impl KeyGenSecondMsg {
         } else {
             flag = false
         };
-//        assert!(flag);
+        assert!(flag);
         DLogProof::verify(&party_one_d_log_proof)?;
         Ok(KeyGenSecondMsg {})
     }
